@@ -4,6 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -35,21 +36,24 @@ public class ConfigurationLifecycleFeature implements LifecycleFeature {
     private ConfigurationMapper mapper;
     private ConfigurationProvider configurationProvider;
     private ConfigurationDocumentation configurationDocumentation;
+    private Function<Class<?>, LifecycleMethods> metadataFunction;
 
     @Inject
     public void initialize(
             ConfigurationMapper mapper, 
             ConfigurationProvider configurationProvider, 
-            ConfigurationDocumentation configurationDocumentation
+            ConfigurationDocumentation configurationDocumentation,
+            Function<Class<?>, LifecycleMethods> metadataFunction
             ) {
         this.mapper = mapper;
         this.configurationDocumentation = configurationDocumentation;
         this.configurationProvider = configurationProvider;
+        this.metadataFunction = metadataFunction;
     }
     
     @Override
     public List<LifecycleAction> getActionsForType(final Class<?> type) {
-        final LifecycleMethods methods = new LifecycleMethods(type);
+        final LifecycleMethods methods = metadataFunction.apply(type);
         if (methods.annotatedFields(Configuration.class).length > 0) {
             return Arrays.<LifecycleAction>asList(new LifecycleAction() {
                 @Override

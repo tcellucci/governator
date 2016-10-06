@@ -16,9 +16,17 @@
 
 package com.netflix.governator.guice;
 
+import static com.netflix.governator.internal.BinaryConstant.I13_8192;
+import static com.netflix.governator.internal.BinaryConstant.I8_256;
+
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Sets;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
@@ -38,6 +46,8 @@ import com.netflix.governator.lifecycle.ClasspathScanner;
 import com.netflix.governator.lifecycle.LifecycleConfigurationProviders;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.governator.lifecycle.LifecycleManagerArguments;
+import com.netflix.governator.lifecycle.LifecycleMetadata;
+import com.netflix.governator.lifecycle.LifecycleMethods;
 
 class InternalBootstrapModule extends AbstractModule
 {
@@ -62,6 +72,29 @@ class InternalBootstrapModule extends AbstractModule
             return new LifecycleConfigurationProviders(configurationProviders);
         }
     }
+    
+    private static class CachedLifecycleMetadataFunction implements Function<Class<?>, LifecycleMethods>{
+        private final LoadingCache<Class<?>, LifecycleMethods> cache = CacheBuilder
+                .newBuilder()
+                .initialCapacity(I13_8192) // number of classes with metadata
+                .concurrencyLevel(I8_256)  // number of concurrent metadata producers (no locks for read)
+                .softValues()
+                .build(new CacheLoader<Class<?>, LifecycleMethods>() {
+                    @Override
+                    public LifecycleMethods load(Class<?> key) throws Exception {
+                        return new LifecycleMethods(key);
+                    }
+                });
+
+        public LifecycleMethods apply(Class<?>  clz) {
+            try {
+                return cache.get(clz);
+            } catch (ExecutionException e) {
+                // caching problem
+                throw new RuntimeException(e);
+            } 
+        };
+   }
 
     public InternalBootstrapModule(Collection<BootstrapModule> bootstrapModules, ClasspathScanner scanner, Stage stage, LifecycleInjectorMode mode, ModuleListBuilder modules, Collection<PostInjectorAction> actions, Collection<ModuleTransformer> transformers, boolean disableAutoBinding) {
         this.scanner = scanner;
@@ -97,6 +130,7 @@ class InternalBootstrapModule extends AbstractModule
         }
 
         bind(com.netflix.governator.LifecycleManager.class).in(Scopes.SINGLETON);
+        bind(new com.google.inject.TypeLiteral<Function<Class<?>, LifecycleMethods>>(){}).toInstance(new CachedLifecycleMetadataFunction());
         binder().bind(LifecycleManagerArguments.class).in(Scopes.SINGLETON);
         binder().bind(LifecycleManager.class).asEagerSingleton();
         binder().bind(LifecycleConfigurationProviders.class).toProvider(LifecycleConfigurationProvidersProvider.class).asEagerSingleton();

@@ -17,25 +17,25 @@ public class DefaultConfigurationMapper implements ConfigurationMapper {
             ConfigurationProvider configurationProvider,
             ConfigurationDocumentation configurationDocumentation,
             Object obj,
-            LifecycleMethods methods) throws Exception {
-
+            LifecycleMethods lifecycleMetadata) throws Exception {
+        
         /**
          * Map a configuration to any field with @Configuration annotation
          */
-        Field[] configurationFields = methods.annotatedFields(Configuration.class);
+        Field[] configurationFields = lifecycleMetadata.annotatedFields(Configuration.class);
         if (configurationFields.length > 0) {
             /**
              * Any field annotated with @ConfigurationVariable will be available for replacement when generating
              * property names
              */
             final Map<String, String> overrides;
-            Field[] configurationVariableFields = methods.annotatedFields(ConfigurationVariable.class);
+            Field[] configurationVariableFields = lifecycleMetadata.annotatedFields(ConfigurationVariable.class);
             if (configurationVariableFields.length > 0) {
                 overrides = Maps.newHashMap();
                 for (Field variableField : configurationVariableFields) {
                     ConfigurationVariable annot = variableField.getAnnotation(ConfigurationVariable.class);
                     if (annot != null) {
-                        overrides.put(annot.name(), methods.fieldGet(variableField, obj).toString());
+                        overrides.put(annot.name(), LifecycleMetadata.fieldGet(variableField, obj).toString());
                     }
                 }
             }

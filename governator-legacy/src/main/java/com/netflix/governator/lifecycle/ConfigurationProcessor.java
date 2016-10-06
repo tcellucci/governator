@@ -73,7 +73,7 @@ class ConfigurationProcessor
                         throw new UnsupportedOperationException("Supplier parameter type " + actualType
                                 + " not supported (" + field.getName() + ")");
                     }
-                    Supplier<?> current = LifecycleMethods.fieldGet(field, obj);
+                    Supplier<?> current = LifecycleMetadata.fieldGet(field, obj);
                     value = getConfigurationSupplier(field, key, actualClass, current);
                     if ( value == null )
                     {
@@ -94,7 +94,7 @@ class ConfigurationProcessor
                         throw new UnsupportedOperationException("Supplier parameter type " + actualType
                                 + " not supported (" + field.getName() + ")");
                     }
-                    Property<?> current = LifecycleMethods.fieldGet(field, obj);
+                    Property<?> current = LifecycleMetadata.fieldGet(field, obj);
                     value = getConfigurationProperty(field, key, actualClass, current);
                     if ( value == null )
                     {
@@ -104,7 +104,7 @@ class ConfigurationProcessor
                 }
                 else
                 {
-                    Supplier<?> supplier = getConfigurationSupplier(field, key, field.getType(), Suppliers.ofInstance(LifecycleMethods.fieldGet(field, obj)));
+                    Supplier<?> supplier = getConfigurationSupplier(field, key, field.getType(), Suppliers.ofInstance(LifecycleMetadata.fieldGet(field, obj)));
                     if ( supplier == null )
                     {
                         log.error("Field type not supported: " + field.getType() + " (" + field.getName() + ")");
@@ -133,18 +133,18 @@ class ConfigurationProcessor
             String defaultValue;
             if ( Supplier.class.isAssignableFrom(field.getType()) )
             {
-                Supplier<?> supplier = LifecycleMethods.fieldGet(field, obj);
+                Supplier<?> supplier = LifecycleMetadata.fieldGet(field, obj);
                 defaultValue = String.valueOf(supplier.get());
             }
             else
             {
-                defaultValue = String.valueOf((Object)LifecycleMethods.fieldGet(field, obj));
+                defaultValue = String.valueOf((Object)LifecycleMetadata.fieldGet(field, obj));
             }
 
             String documentationValue;
             if ( has )
             {
-                LifecycleMethods.fieldSet(field, obj, value);
+                LifecycleMetadata.fieldSet(field, obj, value);
 
                 documentationValue = String.valueOf(value);
                 if ( Supplier.class.isAssignableFrom(field.getType()) )

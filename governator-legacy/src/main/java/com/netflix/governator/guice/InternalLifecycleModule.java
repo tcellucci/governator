@@ -13,15 +13,11 @@
 
 package com.netflix.governator.guice;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.inject.AbstractModule;
 import com.google.inject.Binding;
 import com.google.inject.Key;
@@ -31,22 +27,9 @@ import com.google.inject.spi.ProvisionListener;
 import com.netflix.governator.lifecycle.LifecycleListener;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.governator.lifecycle.LifecycleMethods;
-import static com.netflix.governator.internal.BinaryConstant.*;
 
 class InternalLifecycleModule extends AbstractModule implements ProvisionListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(InternalLifecycleModule.class);
-    private final LoadingCache<Class<?>, LifecycleMethods> lifecycleMethods = CacheBuilder
-            .newBuilder()
-            .initialCapacity(I13_8192) // number of classes with metadata
-            .concurrencyLevel(I8_256)  // number of concurrent metadata producers (no locks for read)
-            .softValues()
-            .build(new CacheLoader<Class<?>, LifecycleMethods>() {
-                @Override
-                public LifecycleMethods load(Class<?> key) throws Exception {
-                    return new LifecycleMethods(key);
-                }
-            });
-
     private final AtomicReference<LifecycleManager> lifecycleManager;
 
     InternalLifecycleModule(AtomicReference<LifecycleManager> lifecycleManager) {
@@ -57,7 +40,7 @@ class InternalLifecycleModule extends AbstractModule implements ProvisionListene
     public void configure() {
         bindListener(
                 Matchers.any(),
-                this);
+                this);      
     }
 
     @Override
@@ -74,22 +57,17 @@ class InternalLifecycleModule extends AbstractModule implements ProvisionListene
                 for (LifecycleListener listener : manager.getListeners()) {
                     listener.objectInjected(bindingType, instance);
                 }
-
+                
                 try {
-                    LifecycleMethods methods = lifecycleMethods.get(instance.getClass());
-                    if (methods.hasLifecycleAnnotations()) {
-                        manager.add(instance, binding, methods);
+                    LifecycleMethods lifecycleMethods = manager.getMetadataFunction().apply(instance.getClass());
+                    if (lifecycleMethods.hasLifecycleAnnotations()) {
+                            manager.add(instance, binding, lifecycleMethods);                       
                     }
-                } catch (ExecutionException e) {
-                    // caching problem
-                    throw new RuntimeException(e);
                 } catch (Throwable e) {
                     // unknown problem will abort injector start up
                     throw new Error(e);
-                }
-
+                }                
             }
         }
     }
-
 }

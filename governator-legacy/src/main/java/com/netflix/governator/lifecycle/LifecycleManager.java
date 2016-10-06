@@ -16,6 +16,10 @@
 
 package com.netflix.governator.lifecycle;
 
+import static com.netflix.governator.internal.BinaryConstant.I10_1024;
+import static com.netflix.governator.internal.BinaryConstant.I15_32768;
+import static com.netflix.governator.internal.BinaryConstant.I16_65536;
+
 import java.io.Closeable;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -26,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import javax.annotation.PostConstruct;
 import javax.validation.ConstraintViolation;
@@ -37,7 +42,6 @@ import javax.validation.groups.Default;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -58,7 +62,6 @@ import com.netflix.governator.guice.PostInjectorAction;
 import com.netflix.governator.internal.JSR250LifecycleAction.ValidationMode;
 import com.netflix.governator.internal.PreDestroyLifecycleFeature;
 import com.netflix.governator.internal.PreDestroyMonitor;
-import static com.netflix.governator.internal.BinaryConstant.*;
 
 /**
  * Main instance management container
@@ -75,6 +78,7 @@ public class LifecycleManager implements Closeable, PostInjectorAction
     }
 
     private final Logger log = LoggerFactory.getLogger(getClass());
+    private final Function<Class<?>, LifecycleMethods> metadataFunction;    
     private final ConcurrentMap<Object, LifecycleStateWrapper> objectStates = new MapMaker().weakKeys().initialCapacity(I16_65536).concurrencyLevel(I10_1024).makeMap();
     private final PreDestroyLifecycleFeature preDestroyLifecycleFeature = new PreDestroyLifecycleFeature(ValidationMode.LAX);
     private final ConcurrentMap<Class<?>, List<LifecycleAction>> preDestroyActionCache = new ConcurrentHashMap<Class<?>, List<LifecycleAction>>(I15_32768);
@@ -115,6 +119,7 @@ public class LifecycleManager implements Closeable, PostInjectorAction
         validator = Validation.buildDefaultValidatorFactory().getValidator();
         configurationDocumentation = arguments.getConfigurationDocumentation();
         configurationProvider = arguments.getConfigurationProvider();
+        metadataFunction = arguments.getMetadataFunction();
     }
 
     /**
@@ -290,7 +295,7 @@ public class LifecycleManager implements Closeable, PostInjectorAction
                 }
                 if (!skipWarmup) {
                     log.debug("\t{}()", warmupMethod.getName());
-                    LifecycleMethods.methodInvoke(warmupMethod, obj);
+                    LifecycleMetadata.methodInvoke(warmupMethod, obj);
                 }
             }
         }
@@ -432,7 +437,7 @@ public class LifecycleManager implements Closeable, PostInjectorAction
         Iterable<String> transformed = Iterables.transform
             (
                 violation.getPropertyPath(),
-                new Function<Path.Node, String>()
+                new com.google.common.base.Function<Path.Node, String>()
                 {
                     @Override
                     public String apply(Path.Node node)
@@ -448,5 +453,9 @@ public class LifecycleManager implements Closeable, PostInjectorAction
     public void call(Injector injector) {
         this.resourceMapper.setInjector(injector);
         this.preDestroyMonitor.addScopeBindings(injector.getScopeBindings());
+    }
+
+    public Function<Class<?>, LifecycleMethods> getMetadataFunction() {
+        return metadataFunction;
     }
 }

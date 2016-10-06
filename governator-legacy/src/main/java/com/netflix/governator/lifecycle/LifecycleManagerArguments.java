@@ -19,6 +19,7 @@ package com.netflix.governator.lifecycle;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,9 @@ public class LifecycleManagerArguments
     @VisibleForTesting
     public static final long                DEFAULT_WARM_UP_PADDING_MS = TimeUnit.SECONDS.toMillis(3);
 
+    @Inject
+    private Function<Class<?>, LifecycleMethods> metadataFunction;
+    
     @Inject
     private ConfigurationProvider           configurationProvider;
     
@@ -125,5 +129,13 @@ public class LifecycleManagerArguments
 
     public void setLifecycleManager(LifecycleManager lifecycleManager) {
         this.lifecycleManager = lifecycleManager;
+    }
+
+    public Function<Class<?>, LifecycleMethods> getMetadataFunction() {
+        return metadataFunction;
+    }
+
+    public void setMetadataFunction(Function<Class<?>, LifecycleMethods> metadataFunction) {
+        this.metadataFunction = metadataFunction;
     }
 }
