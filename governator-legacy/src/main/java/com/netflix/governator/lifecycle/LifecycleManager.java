@@ -156,7 +156,7 @@ public class LifecycleManager implements Closeable, PostInjectorAction
     @Deprecated
     public void add(Object obj) throws Exception
     {
-        add(obj, null, new LifecycleMethods(obj.getClass()));
+        add(obj, null, metadataFunction.apply(obj.getClass()));
     }
 
     /**
